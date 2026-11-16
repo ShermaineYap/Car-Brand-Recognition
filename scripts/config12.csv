@@ -1,0 +1,13 @@
+class,train_dir
+perodua_myvi,dataset/hf_perodua/clean/myvi
+perodua_axia,dataset/hf_perodua/clean/axia
+perodua_bezza,dataset/hf_perodua/clean/bezza
+proton_saga,all/proton/clean/saga
+proton_persona,all/proton/clean/persona
+proton_x50,all/proton/clean/x50
+proton_x70,all/proton/clean/x70
+toyota_vios,all/toyota/clean/vios
+honda_city,all/honda/clean/city
+honda_civic,all/honda/clean/civic
+honda_hr-v,all/honda/clean/hr-v
+ford_ranger,all/ford/clean/ranger

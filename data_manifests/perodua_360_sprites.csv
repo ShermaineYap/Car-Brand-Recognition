@@ -1,0 +1,39 @@
+model,colour,sprite_file,url,frames,frames_per_row,frame_width,frame_height,model_page
+axia,Coral Blue,Axia_Coral_Blue.webp,https://www.perodua.com.my/assets/sprites/Axia_Coral_Blue.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/axia
+axia,Granite Grey,Axia_Granite_Grey.webp,https://www.perodua.com.my/assets/sprites/Axia_Granite_Grey.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/axia
+axia,Lava Red,Axia_Lava_Red.webp,https://www.perodua.com.my/assets/sprites/Axia_Lava_Red.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/axia
+axia,Glittering Silver,Axia_Glittering_Silver.webp,https://www.perodua.com.my/assets/sprites/Axia_Glittering_Silver.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/axia
+axia,Ivory White,Axia_Ivory_White.webp,https://www.perodua.com.my/assets/sprites/Axia_Ivory_White.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/axia
+bezza,Garnet Red,Bezza_Garnet_Red.webp,https://www.perodua.com.my/assets/sprites/Bezza_Garnet_Red.webp,50,5,1120,600,https://www.perodua.com.my/our-models/sedan/bezza
+bezza,Glittering Silver,Bezza_Glittering_Silver.webp,https://www.perodua.com.my/assets/sprites/Bezza_Glittering_Silver.webp,50,5,1120,600,https://www.perodua.com.my/our-models/sedan/bezza
+bezza,Granite Grey,Bezza_Granite_Grey.webp,https://www.perodua.com.my/assets/sprites/Bezza_Granite_Grey.webp,50,5,1120,600,https://www.perodua.com.my/our-models/sedan/bezza
+bezza,Ivory White,Bezza_Ivory_White.webp,https://www.perodua.com.my/assets/sprites/Bezza_Ivory_White.webp,50,5,1120,600,https://www.perodua.com.my/our-models/sedan/bezza
+bezza,Ocean Blue,Bezza_Ocean_Blue.webp,https://www.perodua.com.my/assets/sprites/Bezza_Ocean_Blue.webp,50,5,1120,600,https://www.perodua.com.my/our-models/sedan/bezza
+bezza,Sugar Brown,Bezza_Sugar_Brown.webp,https://www.perodua.com.my/assets/sprites/Bezza_Sugar_Brown.webp,50,5,1120,600,https://www.perodua.com.my/our-models/sedan/bezza
+myvi,Cranberry Red,NewMyvi_Cranberry_Red.webp,https://www.perodua.com.my/assets/sprites/NewMyvi_Cranberry_Red.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/myvi
+myvi,Electric Blue,NewMyvi_ElectricBlue.webp,https://www.perodua.com.my/assets/sprites/NewMyvi_ElectricBlue.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/myvi
+myvi,Glittering Silver,NewMyvi_GlitteringSilver.webp,https://www.perodua.com.my/assets/sprites/NewMyvi_GlitteringSilver.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/myvi
+myvi,Granite Grey,NewMyvi_GraniteGrey.webp,https://www.perodua.com.my/assets/sprites/NewMyvi_GraniteGrey.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/myvi
+myvi,Ivory White,NewMyvi_IvoryWhite.webp,https://www.perodua.com.my/assets/sprites/NewMyvi_IvoryWhite.webp,50,5,1120,600,https://www.perodua.com.my/our-models/hatchback/myvi
+ativa,Coral Blue,Ativa_Coral_Blue.webp,https://www.perodua.com.my/assets/sprites/Ativa_Coral_Blue.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/ativa
+ativa,Pearl Delima Red,Ativa_Garnet_Red.webp,https://www.perodua.com.my/assets/sprites/Ativa_Garnet_Red.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/ativa
+ativa,Pearl Diamond White,Ativa_Pearl_Diamond_White.webp,https://www.perodua.com.my/assets/sprites/Ativa_Pearl_Diamond_White.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/ativa
+ativa,Granite Grey,Ativa_Granite_Grey.webp,https://www.perodua.com.my/assets/sprites/Ativa_Granite_Grey.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/ativa
+ativa,Glittering Silver,Ativa_Glittering_Silver.webp,https://www.perodua.com.my/assets/sprites/Ativa_Glittering_Silver.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/ativa
+alza,Vintage Brown*,Alza_VintageBrown.webp,https://www.perodua.com.my/assets/sprites/Alza_VintageBrown.webp,52,5,1120,500,https://www.perodua.com.my/our-models/mpv/new-alza
+alza,Elegant Black,Alza_ElegantBlack.webp,https://www.perodua.com.my/assets/sprites/Alza_ElegantBlack.webp,52,5,1120,500,https://www.perodua.com.my/our-models/mpv/new-alza
+alza,Garnet Red*,Alza_GarnetRed.webp,https://www.perodua.com.my/assets/sprites/Alza_GarnetRed.webp,52,5,1120,500,https://www.perodua.com.my/our-models/mpv/new-alza
+alza,Glittering Silver,Alza_GlitteringSilver.webp,https://www.perodua.com.my/assets/sprites/Alza_GlitteringSilver.webp,52,5,1120,500,https://www.perodua.com.my/our-models/mpv/new-alza
+alza,Ivory White,Alza_IvoryWhite.webp,https://www.perodua.com.my/assets/sprites/Alza_IvoryWhite.webp,52,5,1120,500,https://www.perodua.com.my/our-models/mpv/new-alza
+aruz,Vintage Brown,aruz/Perodua_Aruz_VintageBrown_spritesheet.webp,https://www.perodua.com.my/assets/sprites/aruz/Perodua_Aruz_VintageBrown_spritesheet.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/aruz
+aruz,Elegant Black,aruz/PeroduaAruz_ElegantBlack_SpriteSheet.webp,https://www.perodua.com.my/assets/sprites/aruz/PeroduaAruz_ElegantBlack_SpriteSheet.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/aruz
+aruz,Garnet Red,aruz/PeroduaAruz_GarnetRed_SpriteSheet.webp,https://www.perodua.com.my/assets/sprites/aruz/PeroduaAruz_GarnetRed_SpriteSheet.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/aruz
+aruz,Glittering Silver,aruz/PeroduaAruz_GlitteringSilver_SpriteSheet.webp,https://www.perodua.com.my/assets/sprites/aruz/PeroduaAruz_GlitteringSilver_SpriteSheet.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/aruz
+aruz,Granite Grey,aruz/PeroduaAruz_GraniteGrey_SpriteSheet.webp,https://www.perodua.com.my/assets/sprites/aruz/PeroduaAruz_GraniteGrey_SpriteSheet.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/aruz
+aruz,Ivory White,aruz/PeroduaAruz_IvoryWhite_SpriteSheet.webp,https://www.perodua.com.my/assets/sprites/aruz/PeroduaAruz_IvoryWhite_SpriteSheet.webp,50,5,1120,600,https://www.perodua.com.my/our-models/suv/aruz
+traz,Cranberry Red,Traz_Cranberry_Red.jpg,https://www.perodua.com.my/assets/sprites/Traz_Cranberry_Red.jpg,50,5,1120,600,https://www.perodua.com.my/our-models/suv/traz
+traz,Electric Blue 2-Tone,Traz_Electric_Blue.jpg,https://www.perodua.com.my/assets/sprites/Traz_Electric_Blue.jpg,50,5,1120,600,https://www.perodua.com.my/our-models/suv/traz
+traz,Glittering Silver 2-Tone,Traz_Glittering_Silver_2T.jpg,https://www.perodua.com.my/assets/sprites/Traz_Glittering_Silver_2T.jpg,50,5,1120,600,https://www.perodua.com.my/our-models/suv/traz
+traz,Granite Grey,Traz_Granite_Grey.jpg,https://www.perodua.com.my/assets/sprites/Traz_Granite_Grey.jpg,50,5,1120,600,https://www.perodua.com.my/our-models/suv/traz
+traz,Glittering Silver,Traz_Glittering_Silver.jpg,https://www.perodua.com.my/assets/sprites/Traz_Glittering_Silver.jpg,50,5,1120,600,https://www.perodua.com.my/our-models/suv/traz
+traz,Ivory White,Traz_Ivory_White.jpg,https://www.perodua.com.my/assets/sprites/Traz_Ivory_White.jpg,50,5,1120,600,https://www.perodua.com.my/our-models/suv/traz

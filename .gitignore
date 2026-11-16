@@ -1,0 +1,19 @@
+# image data and large files stay out of git
+datasets/
+commons_train/
+test_commons/
+raw*/
+crops*/
+train_v*/
+test_sets/
+runs/
+*.zip
+*.tar
+*.pt
+*.pth
+*.npz
+car_classifier.json
+yolo*.pt
+__pycache__/
+.venv/
+.DS_Store

@@ -1,0 +1,13 @@
+class,train_dir
+perodua_myvi,train_v3/perodua_myvi
+perodua_axia,train_v3/perodua_axia
+perodua_bezza,train_v3/perodua_bezza
+proton_saga,train_v3/proton_saga
+proton_persona,train_v3/proton_persona
+proton_x50,train_v3/proton_x50
+proton_x70,train_v3/proton_x70
+toyota_vios,train_v3/toyota_vios
+honda_city,train_v3/honda_city
+honda_civic,train_v3/honda_civic
+honda_hr-v,train_v3/honda_hr-v
+ford_ranger,train_v3/ford_ranger

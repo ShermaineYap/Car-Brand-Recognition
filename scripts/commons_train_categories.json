@@ -1,0 +1,24 @@
+{
+ "toyota_vios": [
+  "Toyota Yaris Ativ (AC100)",
+  "Toyota Yaris Ativ Hybrid",
+  "Toyota Yaris Ativ GR Sport",
+  "Toyota Yaris Ativ Hybrid GR Sport"
+ ],
+ "perodua_myvi": [
+  "Perodua Myvi (first generation)",
+  "Perodua Myvi (second generation)"
+ ],
+ "proton_saga": [
+  "Proton Saga (C20)"
+ ],
+ "proton_persona": [
+  "Proton Persona (CM)",
+  "Proton Persona (C90)"
+ ],
+ "honda_city": [
+  "Honda City (4th generation)",
+  "Honda City (5th generation)",
+  "Honda City (6th generation)"
+ ]
+}
