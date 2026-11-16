@@ -1,18 +1,36 @@
 {
   "name": "Car Brand Recognition demo",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
-  "hostRequirements": { "cpus": 2, "memory": "8gb" },
-  "containerEnv": { "GRADIO_SERVER_NAME": "0.0.0.0" },
-  "postCreateCommand": "pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r demo/requirements.txt",
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb"
+  },
+  "containerEnv": {
+    "GRADIO_SERVER_NAME": "0.0.0.0"
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r demo/requirements.txt",
   "postAttachCommand": {
     "demo": "cd demo && python app.py"
   },
-  "forwardPorts": [7860],
+  "forwardPorts": [
+    7860
+  ],
   "portsAttributes": {
-    "7860": { "label": "Car recognition demo", "onAutoForward": "openBrowser" }
+    "7860": {
+      "label": "Car recognition demo",
+      "onAutoForward": "openBrowser"
+    }
   },
   "customizations": {
-    "codespaces": { "openFiles": ["demo/README.md"] },
-    "vscode": { "extensions": ["ms-python.python"] }
+    "codespaces": {
+      "openFiles": [
+        "demo/README.md"
+      ]
+    },
+    "vscode": {
+      "extensions": [
+        "ms-python.python"
+      ]
+    }
   }
 }
