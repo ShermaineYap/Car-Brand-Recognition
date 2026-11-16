@@ -3,6 +3,22 @@
 Recognises the brand and model of cars common in Malaysia (for example *Perodua Myvi*) in a photo.
 Two stages: a COCO-pretrained YOLO finds each car, then an image classifier names the cropped car.
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ShermaineYap/Car-Brand-Recognition?quickstart=1)
+
+## Run the demo on GitHub Codespaces
+
+1. Click the badge above (or *Code → Codespaces → Create codespace on main*).
+2. Wait for setup: the first time it installs PyTorch and the other packages (about 3–5 minutes).
+3. The app starts by itself in the terminal and a browser tab opens. If no tab opens, go to the
+   **Ports** tab and open port **7860**. The first photo takes longer while the models download.
+4. Upload a photo or try the examples. Each car is boxed and named.
+
+The codespace is private to you and stops after 30 minutes of inactivity. Stop or delete it from
+github.com/codespaces when you are done, to save your free monthly hours. To share the demo with
+someone, set port 7860 to *Public* in the Ports tab while the codespace is running (the link stops
+working when the codespace stops). To run it on your own computer instead, see
+[demo/README.md](demo/README.md).
+
 ## Current results
 
 Top-1 accuracy on hand-checked real-world photos that were never used for training:

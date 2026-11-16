@@ -5,6 +5,10 @@ Upload a photo (or use your webcam) and every car in it is boxed and named, for 
 
 ## Run it
 
+Easiest: open the repo in GitHub Codespaces (see the main README); everything installs and starts by itself.
+
+On your own computer:
+
 ```
 cd demo
 python3 -m venv .venv && source .venv/bin/activate      # optional but recommended
