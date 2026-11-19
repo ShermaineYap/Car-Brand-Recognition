@@ -17,3 +17,6 @@ yolo*.pt
 __pycache__/
 .venv/
 .DS_Store
+# keep the deployed web models
+!web/api/models/*.onnx
+.vercel/

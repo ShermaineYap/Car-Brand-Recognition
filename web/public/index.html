@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%9A%97%3C/text%3E%3C/svg%3E">
+<title>Car brand and model recognition</title>
+<style>
+  :root { --ink:#15202b; --muted:#5b6875; --line:#dfe3e8; --bg:#f6f7f9; --accent:#1b6ef3; --ok:#1f8a4c; --grey:#8a939c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); }
+  main { max-width: 980px; margin: 0 auto; padding: 28px 18px 60px; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); margin: 0 0 20px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .drop { display:block; border:2px dashed var(--line); border-radius:10px; padding:26px; text-align:center; cursor:pointer; transition: border-color .15s, background .15s; }
+  .drop.over, .drop:hover { border-color: var(--accent); background:#f3f7ff; }
+  .drop strong { color: var(--accent); }
+  .examples { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  .examples span { color: var(--muted); font-size: .9rem; margin-right: 4px; }
+  .examples img { width:84px; height:56px; object-fit:cover; border-radius:6px; border:2px solid transparent; cursor:pointer; }
+  .examples img:hover { border-color: var(--accent); }
+  #status { margin: 16px 0 10px; font-weight: 600; min-height: 1.5em; }
+  #status.err { color:#b3261e; }
+  canvas { max-width:100%; height:auto; display:block; border-radius:8px; }
+  .result { display:none; margin-top: 6px; }
+  table { border-collapse: collapse; width:100%; margin-top:14px; font-size:.95rem; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight:600; font-size:.85rem; text-transform: uppercase; letter-spacing:.03em; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align: middle; }
+  .muted { color: var(--muted); }
+  details { margin-top: 22px; color: var(--muted); font-size:.92rem; }
+  details summary { cursor:pointer; color: var(--ink); font-weight:600; }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--line); border-top-color: var(--accent); border-radius:50%; animation: spin .8s linear infinite; vertical-align:-2px; margin-right:8px; }
+  @media (max-width: 600px) { .top3 { display:none; } th, td { padding:8px 6px; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Car brand and model recognition</h1>
+  <p class="lede">Upload a photo of a car on a Malaysian road. Each car is boxed and named, for example <em>Perodua Myvi</em>.</p>
+
+  <div class="card">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="image/*" hidden>
+      <div><strong>Choose a photo</strong> or drop it here</div>
+      <div class="muted" style="font-size:.9rem">JPEG or PNG. Photos are resized in your browser before upload.</div>
+    </label>
+    <div class="examples" id="examples"><span>Or try:</span></div>
+    <div id="status"></div>
+    <div class="result" id="result">
+      <canvas id="canvas"></canvas>
+      <table id="table">
+        <thead><tr><th>Car</th><th>Brand</th><th>Model</th><th>Confidence</th><th class="top3">Top 3 guesses</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <details>
+    <summary>How it works and what it knows</summary>
+    <p>A YOLO detector finds each vehicle, then a classifier (CLIP image features + logistic regression) names cars covering at least 3% of the photo.
+    Smaller background cars get a thin grey box. Low-confidence guesses are shown in grey with a question mark.</p>
+    <p id="known">It knows 12 models; anything else should come out as <em>Other car</em>.</p>
+    <p>On 548 hand-checked Wikimedia Commons photos it names the right model about 87% of the time.
+    It is weaker on pre-2016 generations and its main mix-ups are Myvi vs Axia, Vios vs City and X70 vs X50.
+    Photos you upload are processed and not stored.</p>
+    <p>Example photos: Wikimedia Commons, see <a href="examples/credits.csv">credits</a>.</p>
+  </details>
+</main>
+<script>
+const COLOURS = ["#2e7d32","#1565c0","#c62828","#6a1b9a","#ef6c00","#00838f"];
+const MAX_SIDE = 1600;
+const EXAMPLES = ["01_perodua_myvi","02_proton_x70","03_honda_city","04_perodua_bezza","05_toyota_vios","06_proton_saga"];
+const $ = id => document.getElementById(id);
+const status = (msg, err=false, spin=false) => { $("status").className = err ? "err" : ""; $("status").innerHTML = (spin ? '<span class="spinner"></span>' : "") + msg; };
+
+for (const e of EXAMPLES) {
+  const img = document.createElement("img");
+  img.src = `examples/${e}.jpg`; img.alt = e.slice(3).replace("_", " "); img.title = "Try this photo";
+  img.onclick = async () => { const b = await (await fetch(img.src)).blob(); handle(b); };
+  $("examples").appendChild(img);
+}
+$("file").onchange = e => e.target.files[0] && handle(e.target.files[0]);
+const drop = $("drop");
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); e.dataTransfer.files[0] && handle(e.dataTransfer.files[0]); };
+
+async function loadImage(blob) {
+  const url = URL.createObjectURL(blob);
+  const img = new Image(); img.src = url;
+  await img.decode();
+  return img;
+}
+
+async function handle(blob) {
+  if (!blob.type.startsWith("image/")) return status("That is not an image file.", true);
+  status("Recognising… (the first photo after a quiet spell can take ~20 s while the server wakes up)", false, true);
+  let img;
+  try { img = await loadImage(blob); } catch { return status("Could not read that image.", true); }
+  const s = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = $("canvas"); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+  const ctx = c.getContext("2d"); ctx.drawImage(img, 0, 0, c.width, c.height);
+  const jpeg = await new Promise(r => c.toBlob(r, "image/jpeg", 0.9));
+  const form = new FormData(); form.append("file", jpeg, "photo.jpg");
+  let data;
+  try {
+    const res = await fetch("/api/recognise", { method: "POST", body: form });
+    data = await res.json();
+    if (!res.ok) throw new Error(data.detail || res.statusText);
+  } catch (err) { return status("Something went wrong: " + err.message, true); }
+  draw(ctx, c, img, data);
+}
+
+function draw(ctx, c, img, data) {
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const k = c.width / data.width;
+  const lw = Math.max(2, Math.round(Math.min(c.width, c.height) / 250));
+  ctx.lineWidth = 1; ctx.strokeStyle = "#aaa";
+  for (const b of data.background_boxes) ctx.strokeRect(b[0]*k, b[1]*k, (b[2]-b[0])*k, (b[3]-b[1])*k);
+  const tbody = $("table").querySelector("tbody"); tbody.innerHTML = "";
+  $("result").style.display = "block";
+  const shown = c.getBoundingClientRect().width || c.width;            // label text ~14px on screen
+  const fs = Math.max(12, Math.round(14 * c.width / shown));
+  ctx.font = `600 ${fs}px system-ui, sans-serif`;
+  for (const car of data.cars) {
+    const col = car.sure ? COLOURS[(car.n - 1) % COLOURS.length] : "#8a939c";
+    const [x1, y1, x2, y2] = car.box.map(v => v * k);
+    ctx.lineWidth = lw; ctx.strokeStyle = col; ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    const name = car.other ? "Other car" : `${car.brand} ${car.model}${car.sure ? "" : "?"}`;
+    const text = `${car.n}. ${name} ${Math.round(car.confidence * 100)}%`;
+    const tw = ctx.measureText(text).width + 12, th = fs + 10;
+    const ty = y1 > th + 4 ? y1 - th : y1;
+    ctx.fillStyle = col; ctx.fillRect(x1, ty, tw, th);
+    ctx.fillStyle = "#fff"; ctx.fillText(text, x1 + 6, ty + fs + 2);
+    const tr = document.createElement("tr");
+    const model = car.other ? "not one of the models it knows" : car.model + (car.sure ? "" : " (not sure)");
+    tr.innerHTML = `<td><span class="dot" style="background:${col}"></span>${car.n}</td><td>${car.brand}</td><td>${model}</td>` +
+      `<td>${Math.round(car.confidence * 100)}%</td><td class="muted top3">${car.top3.map(t => `${t.name} ${Math.round(t.p*100)}%`).join(", ")}</td>`;
+    tbody.appendChild(tr);
+  }
+  $("table").style.display = data.cars.length ? "" : "none";
+  $("result").style.display = "block";
+  const named = data.cars.filter(c => c.sure).map(c => `${c.brand} ${c.model}`);
+  if (!data.cars.length) status(data.background_boxes.length ? "Only small or distant cars found. Try a photo where the car fills more of the frame." : "No car found in this photo.");
+  else status(`Found ${data.cars.length} car${data.cars.length > 1 ? "s" : ""}` + (named.length ? ": " + named.join(", ") : "") + ".");
+  if (data.known_models) $("known").innerHTML = `It knows ${data.known_models.length} models: ${data.known_models.join(", ")}. Anything else should come out as <em>Other car</em>.`;
+}
+</script>
+</body>
+</html>
