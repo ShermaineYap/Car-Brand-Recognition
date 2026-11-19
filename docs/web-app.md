@@ -1,6 +1,6 @@
 # Web app for Vercel
 
-Same pipeline as `demo/app.py`, rebuilt to fit a Vercel Python function (no PyTorch):
+Files: `api/`, `public/`, `vercel.json` and `requirements.txt` at the repo root. Same pipeline as `demo/app.py`, rebuilt to fit a Vercel Python function (no PyTorch):
 
 - `api/models/yolo26n.onnx`: YOLO26n vehicle detector (Ultralytics export, 640 px input)
 - `api/models/clip_vitb32_visual_int8.onnx`: CLIP ViT-B/32 image encoder, int8-quantised (89 MB)
@@ -13,7 +13,7 @@ ONNX); Openverse 52.6% vs 55.5%. Function bundle is about 260 MB, under Vercel's
 
 ## Deploy
 
-Import the GitHub repo in Vercel and set **Root Directory** to `web`. No other settings are needed.
+Import the GitHub repo in Vercel and leave Root Directory as `./`. No other settings are needed.
 
 ## Run locally
 

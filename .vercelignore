@@ -1,0 +1,8 @@
+# only api/, public/, vercel.json and requirements.txt are needed on Vercel
+scripts/
+notebook/
+demo/
+results/
+data_manifests/
+docs/
+.devcontainer/

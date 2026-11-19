@@ -47,6 +47,7 @@ experiments that did not help are in [`results/`](results/) and summarised below
 |---|---|
 | `scripts/` | Data pipeline and baseline training (run order below) |
 | `notebook/finetune_car_classifier.ipynb` | Fine-tune a ConvNeXt/EfficientNet/ViT on a free Colab GPU and score both test sets |
+| `api/`, `public/`, `vercel.json` | Vercel web app (ONNX models, no PyTorch); see [docs/web-app.md](docs/web-app.md) |
 | `demo/` | Gradio web app: upload a photo, every car is boxed and named ([demo/README.md](demo/README.md)) |
 | `results/` | Result tables, confusion matrices and per-photo predictions |
 | `data_manifests/` | Class counts, removed-crop list, and credits (author, licence, link) for every Commons/Openverse photo |

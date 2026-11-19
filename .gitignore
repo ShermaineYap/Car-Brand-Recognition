@@ -18,5 +18,5 @@ __pycache__/
 .venv/
 .DS_Store
 # keep the deployed web models
-!web/api/models/*.onnx
+!api/models/*.onnx
 .vercel/
