@@ -13,7 +13,7 @@ ONNX); Openverse 52.6% vs 55.5%. Function bundle is about 260 MB, under Vercel's
 
 ## Deploy
 
-Import the GitHub repo in Vercel and leave Root Directory as `./`. No other settings are needed.
+Import the GitHub repo in Vercel and leave Root Directory as `./`; Vercel detects it as a FastAPI app. Every push to `main` redeploys.
 
 ## Run locally
 
