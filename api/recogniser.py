@@ -1,7 +1,7 @@
-"""Car brand and model recognition without PyTorch: YOLO26n and CLIP ViT-B/32 in ONNX Runtime.
+"""Car brand and model recognition without PyTorch: YOLO26n and CLIP ViT-B/16 in ONNX Runtime.
 
-Same pipeline as demo/app.py: detect vehicles, crop each one, embed it with CLIP, then the
-logistic-regression head picks one of 12 models or "other car".
+Detect vehicles, crop each one, embed it with CLIP ViT-B/16, then a logistic-regression head picks
+one of ~180 make-model classes. When the model is unsure but the make is clear, report the make.
 """
 import io
 import json
@@ -17,16 +17,48 @@ DETECT_CONF = 0.35
 NMS_IOU = 0.6
 MIN_BOX = 60                      # px; smaller cars are ignored
 MIN_AREA = 0.03                   # cars under 3% of the photo are background: box only, no name
-UNSURE_BELOW = 0.30               # baseline probabilities are flat; 0.30 keeps 94% at ~90% accuracy
+UNSURE_BELOW = 0.30               # set from the hold-out: see docs/web-app.md
 PAD = 0.04
 CLIP_MEAN = np.array([0.48145466, 0.4578275, 0.40821073], dtype=np.float32)
 CLIP_STD = np.array([0.26862954, 0.26130258, 0.27577711], dtype=np.float32)
-BRANDS = {"perodua": "Perodua", "proton": "Proton", "toyota": "Toyota", "honda": "Honda", "ford": "Ford"}
+BRANDS = {"perodua": "Perodua", "proton": "Proton", "toyota": "Toyota", "honda": "Honda", "ford": "Ford",
+          "bmw": "BMW", "byd": "BYD", "mini": "MINI", "mercedes-benz": "Mercedes-Benz", "ora": "ORA",
+          "mazda": "Mazda", "nissan": "Nissan", "lexus": "Lexus", "kia": "Kia", "isuzu": "Isuzu", "porsche": "Porsche",
+          "mitsubishi": "Mitsubishi", "haval": "Haval", "chery": "Chery", "lamborghini": "Lamborghini", "tank": "Tank"}
+MODEL_NAMES = {"hr-v": "HR-V", "x50": "X50", "x70": "X70", "x90": "X90", "s70": "S70", "cr-v": "CR-V", "br-v": "BR-V",
+               "wr-v": "WR-V", "cx-3": "CX-3", "cx-30": "CX-30", "cx-5": "CX-5", "cx-60": "CX-60", "cx-8": "CX-8",
+               "cx-9": "CX-9", "mx-5": "MX-5", "mx-30": "MX-30", "bt-50": "BT-50", "d-max": "D-Max", "mu-x": "MU-X",
+               "x-trail": "X-Trail", "c-hr": "C-HR", "rav4": "RAV4", "gr86": "GR86", "86": "86", "gr_supra": "GR Supra",
+               "gr_yaris": "GR Yaris", "gr_corolla": "GR Corolla", "fj_cruiser": "FJ Cruiser", "s-max": "S-Max",
+               "ev6": "EV6", "atto_3": "Atto 3", "amg_gt": "AMG GT", "3_door": "3-Door", "5_door": "5-Door",
+               "ix": "iX", "ix1": "iX1", "ix3": "iX3", "i3": "i3", "i4": "i4", "i5": "i5", "i7": "i7", "i8": "i8",
+               "x1": "X1", "x2": "X2", "x3": "X3", "x4": "X4", "x5": "X5", "x6": "X6", "x7": "X7", "xm": "XM", "z4": "Z4",
+               "m2": "M2", "m3": "M3", "m4": "M4", "m5": "M5", "h1": "H1", "h2": "H2", "h6": "H6", "h9": "H9",
+               "es": "ES", "gs": "GS", "is": "IS", "lc": "LC", "lm": "LM", "ls": "LS", "lx": "LX", "nx": "NX",
+               "rc": "RC", "rx": "RX", "ux": "UX", "rz": "RZ", "nv200": "NV200", "nv350": "NV350", "eqa": "EQA",
+               "eqb": "EQB", "eqe": "EQE", "eqs": "EQS", "eqe_suv": "EQE SUV", "eqs_suv": "EQS SUV", "cla": "CLA",
+               "cls": "CLS", "gla": "GLA", "glb": "GLB", "glc": "GLC", "gle": "GLE", "gls": "GLS", "sl": "SL",
+               "slc": "SLC", "718": "718", "911": "911", "500": "500", "v70": "V70"}
+MAKE_SURE = 0.50                  # if the model is unsure but its make is this likely, report the make only
 
 _opts = ort.SessionOptions()
 _opts.intra_op_num_threads = 2
 _yolo = ort.InferenceSession(str(MODELS / "yolo26n.onnx"), _opts, providers=["CPUExecutionProvider"])
-_clip = ort.InferenceSession(str(MODELS / "clip_vitb32_visual_int8.onnx"), _opts, providers=["CPUExecutionProvider"])
+def _load_half_weights(path):
+    """The CLIP ViT-B/16 file stores its big weight tensors as float16 to halve its size;
+    convert them back to float32 so inference matches full precision."""
+    import onnx
+    from onnx import numpy_helper
+    parts = sorted(path.parent.glob(path.name + ".part*"))    # stored in <100 MB parts for GitHub
+    data = b"".join(p.read_bytes() for p in parts) if parts else path.read_bytes()
+    m = onnx.load_from_string(data)
+    for init in m.graph.initializer:
+        if init.data_type == onnx.TensorProto.FLOAT16:
+            init.CopyFrom(numpy_helper.from_array(numpy_helper.to_array(init).astype(np.float32), init.name))
+    return ort.InferenceSession(m.SerializeToString(), _opts, providers=["CPUExecutionProvider"])
+
+
+_clip = _load_half_weights(MODELS / "clip_vitb16_w16.onnx")
 _head = json.load(open(MODELS / "classifier_head.json"))
 _W = np.array(_head["coef"], dtype=np.float32).T
 _b = np.array(_head["intercept"], dtype=np.float32)
@@ -35,6 +67,11 @@ LABELS = list(dict.fromkeys(_class_label))
 _M = np.zeros((len(_class_label), len(LABELS)), dtype=np.float32)
 for i, l in enumerate(_class_label):
     _M[i, LABELS.index(l)] = 1
+MAKES = sorted({l.split("_")[0] for l in LABELS if l != "other_car"})
+_MK = np.zeros((len(LABELS), len(MAKES)), dtype=np.float32)
+for i, l in enumerate(LABELS):
+    if l != "other_car":
+        _MK[i, MAKES.index(l.split("_")[0])] = 1
 
 
 def pretty(label):
@@ -42,7 +79,7 @@ def pretty(label):
     if label == "other_car":
         return "Other", "car"
     make, model = label.split("_", 1)
-    nice = {"hr-v": "HR-V", "x50": "X50", "x70": "X70"}.get(model, model.replace("_", " ").title())
+    nice = MODEL_NAMES.get(model, model.replace("_", " ").title().replace("-Class", "-Class"))
     return BRANDS.get(make, make.title()), nice
 
 
@@ -130,11 +167,19 @@ def recognise(image_bytes):
             label = LABELS[order[0]]
             brand, model = pretty(label)
             conf = float(p[order[0]])
+            pm = p @ _MK
+            make_i = int(pm.argmax())
+            make_conf = float(pm[make_i])
+            sure = conf >= UNSURE_BELOW and label != "other_car"
+            make_only = (not sure) and label != "other_car" and make_conf >= MAKE_SURE
+            if make_only:
+                brand = BRANDS.get(MAKES[make_i], MAKES[make_i].title())
             cars.append({
                 "n": k, "box": [round(v, 1) for v in bb], "label": label, "brand": brand, "model": model,
                 "confidence": round(conf, 3), "other": label == "other_car",
-                "sure": conf >= UNSURE_BELOW and label != "other_car",
+                "sure": sure, "make_only": make_only, "make_confidence": round(make_conf, 3),
                 "top3": [{"name": " ".join(pretty(LABELS[j])), "p": round(float(p[j]), 3)} for j in order[:3]],
             })
     return {"width": W, "height": H, "cars": cars, "background_boxes": [[round(v, 1) for v in bb] for bb in small],
-            "known_models": [" ".join(pretty(l)) for l in LABELS if l != "other_car"]}
+            "known_models": [" ".join(pretty(l)) for l in LABELS if l != "other_car"],
+            "known_makes": [BRANDS.get(m, m.title()) for m in MAKES]}

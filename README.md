@@ -3,7 +3,7 @@
 Recognises the brand and model of cars common in Malaysia (for example *Perodua Myvi*) in a photo.
 Two stages: a COCO-pretrained YOLO finds each car, then an image classifier names the cropped car.
 
-**Live demo:** https://car-brand-recognition-three.vercel.app (Vercel; redeploys on every push to `main`)
+**Live demo:** https://car-brand-recognition-three.vercel.app (photos and videos, 179 models from 21 makes; redeploys on every push to `main`)
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ShermaineYap/Car-Brand-Recognition?quickstart=1)
 

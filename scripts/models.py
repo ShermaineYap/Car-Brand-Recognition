@@ -29,7 +29,8 @@ RULES = {
     "ora": {"black cat": "black cat", "good cat": "good cat"},
     "nissan": {"grand livina": "grand livina", "z proto": "z", "nv350 urvan": "nv350"},
     "kia": {"grand carnival": "carnival"},
-    "mini": {"3 door": "3 door", "5 door": "5 door", "jcw clubman": "clubman", "john cooper works": "3 door"},
+    "mini": {"3 door": "3 door", "5 door": "5 door", "jcw clubman": "clubman", "john cooper works countryman": "countryman",
+             "john cooper works clubman": "clubman", "john cooper works": "3 door"},
     "proton": {"satria neo": "satria neo", "suprima s": "suprima s"},
 }
 
