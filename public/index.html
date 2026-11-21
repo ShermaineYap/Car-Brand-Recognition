@@ -37,6 +37,7 @@
   .muted { color: var(--muted); }
   .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:12px; color:var(--muted); font-size:.92rem; }
   .row select, .row button { font:inherit; padding:4px 8px; border-radius:6px; border:1px solid var(--line); background:#fff; }
+  .row button.ghost { cursor:pointer; }
   .row button.primary { background: var(--accent); color:#fff; border-color: var(--accent); font-weight:600; padding:6px 14px; cursor:pointer; }
   .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:10px; }
   .bar div { height:100%; width:0; background:var(--accent); transition: width .2s; }
@@ -66,7 +67,7 @@
       <div class="hidden" id="result">
         <canvas id="canvas"></canvas>
         <table id="table">
-          <thead><tr><th>Car</th><th>Brand</th><th>Model</th><th>Confidence</th><th class="top3">Top 3 guesses</th></tr></thead>
+          <thead><tr><th>ID</th><th>Brand</th><th>Model</th><th>Confidence</th><th class="top3">Top 3 guesses</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -84,6 +85,7 @@
         </label>
         <label>Up to <select id="vmax"><option>30</option><option selected>60</option><option>120</option></select> s of video</label>
         <button class="primary hidden" id="vgo">Analyse video</button>
+        <button class="ghost hidden" id="vrec">Download labelled video</button>
       </div>
       <div class="status" id="vstatus"></div>
       <div class="bar hidden" id="vbar"><div></div></div>
@@ -92,7 +94,7 @@
         <canvas id="vcanvas"></canvas>
       </div>
       <table id="vtable" class="hidden">
-        <thead><tr><th>Car</th><th>Brand</th><th>Model</th><th>Confidence</th><th class="top3">Seen</th></tr></thead>
+        <thead><tr><th>ID</th><th>Brand</th><th>Model</th><th>Confidence</th><th class="top3">Seen</th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
@@ -100,8 +102,9 @@
 
   <details>
     <summary>How it works and what it knows</summary>
-    <p>A YOLO detector finds each vehicle, then a classifier (CLIP image features + logistic regression) names cars covering at least 3% of the frame.
-    Smaller background cars get a thin grey box. When the model is unsure it shows a question mark, or only the brand if the brand is clear.</p>
+    <p>A YOLO detector finds every car, motorcycle, bus and truck, then a classifier (CLIP image features + logistic regression) names each car that is
+    at least 48 pixels across. When it is sure it shows the model (for example <em>ID:3 Proton Saga 0.88</em>); when only the brand is clear it shows the brand;
+    otherwise it just says <em>car</em>. Very small cars and motorcycles are boxed but not named.</p>
     <p>Video: the page takes a frame every half second (you can change this), sends each frame to the same recogniser,
     follows each car from frame to frame, and gives it the name it was given most often. Press play to watch the boxes on the video.</p>
     <p id="known"></p>
@@ -110,7 +113,6 @@
 </main>
 <script>
 const COLOURS = ["#2e7d32","#1565c0","#c62828","#6a1b9a","#ef6c00","#00838f","#ad1457","#4e342e"];
-const GREY = "#8a939c";
 const MAX_SIDE = 1600, FRAME_SIDE = 960;
 const EXAMPLES = ["01_perodua_myvi","02_proton_x70","03_honda_city","04_perodua_bezza","05_toyota_vios","06_proton_saga"];
 const $ = id => document.getElementById(id);
@@ -133,18 +135,33 @@ async function recogniseBlob(blob) {
   throw new Error("server busy, please try again");
 }
 function carName(car) {
-  if (car.other) return "Other car";
+  if (!car.named) return car.kind;                       // motorcycle, or too small to name
+  if (car.other) return "car";
   if (car.sure) return `${car.brand} ${car.model}`;
-  if (car.make_only) return `${car.brand} (model unsure)`;
-  return `${car.brand} ${car.model}?`;
+  if (car.make_only) return car.brand;
+  return car.kind || "car";                              // unsure: say what it is, not a guess
 }
-function drawBox(ctx, box, colour, text, lw, fs) {
+function carConf(car) { return !car.named ? car.confidence : car.make_only ? car.make_confidence : car.sure ? car.confidence : car.detect_score || car.confidence; }
+// Traffic-camera style: thin green box, "ID:n name 0.88" in yellow on a dark strip
+const BOX = "#39e639", TXT = "#ffe600", DIM = "#9fd89f";
+function drawBox(ctx, box, named, text, lw, fs) {
   const [x1, y1, x2, y2] = box;
-  ctx.lineWidth = lw; ctx.strokeStyle = colour; ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-  ctx.font = `600 ${fs}px system-ui, sans-serif`;
-  const tw = ctx.measureText(text).width + 12, th = fs + 10, ty = y1 > th + 4 ? y1 - th : y1;
-  ctx.fillStyle = colour; ctx.fillRect(x1, ty, tw, th);
-  ctx.fillStyle = "#fff"; ctx.fillText(text, x1 + 6, ty + fs + 2);
+  ctx.lineWidth = lw; ctx.strokeStyle = named ? BOX : DIM; ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+  ctx.font = `600 ${fs}px ui-monospace, "SF Mono", Menlo, Consolas, monospace`;
+  const tw = ctx.measureText(text).width + 8, th = fs + 6, ty = y1 > th + 2 ? y1 - th : y1;
+  ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(x1, ty, tw, th);
+  ctx.fillStyle = named ? TXT : "#e8e8e8"; ctx.fillText(text, x1 + 4, ty + fs);
+}
+function drawPanel(ctx, title, counts, fs) {
+  const lines = [title, ...counts.map(([k, v]) => `${k}: ${v}`)];
+  ctx.font = `600 ${fs}px ui-monospace, "SF Mono", Menlo, Consolas, monospace`;
+  const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16, h = lines.length * (fs + 5) + 10;
+  ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, w, h);
+  lines.forEach((l, i) => { ctx.fillStyle = i === 0 ? "#fff" : TXT; ctx.fillText(l, 8, 6 + fs + i * (fs + 5)); });
+}
+function countBy(names) {
+  const c = {}; for (const n of names) c[n] = (c[n] || 0) + 1;
+  return Object.entries(c).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 function showKnown(data) {
   if (!data.known_models) return;
@@ -182,23 +199,22 @@ async function handlePhoto(blob) {
   ctx.drawImage(img, 0, 0, c.width, c.height);
   const k = c.width / data.width;
   const shown = c.getBoundingClientRect().width || c.width;
-  const fs = Math.max(12, Math.round(14 * c.width / shown)), lw = Math.max(2, Math.round(2.5 * c.width / shown));
-  ctx.lineWidth = 1; ctx.strokeStyle = "#aaa";
-  for (const b of data.background_boxes) ctx.strokeRect(b[0]*k, b[1]*k, (b[2]-b[0])*k, (b[3]-b[1])*k);
+  const fs = Math.max(11, Math.round(13 * c.width / shown)), lw = Math.max(1.5, 2 * c.width / shown);
   const tbody = $("table").querySelector("tbody"); tbody.innerHTML = "";
   for (const car of data.cars) {
-    const col = car.sure ? COLOURS[(car.n - 1) % COLOURS.length] : GREY;
-    drawBox(ctx, car.box.map(v => v * k), col, `${car.n}. ${carName(car)} ${pct(car.make_only ? car.make_confidence : car.confidence)}`, lw, fs);
-    const model = car.other ? "not one of the models it knows" : car.make_only ? "unsure" : car.model + (car.sure ? "" : " (not sure)");
+    const named = car.named && (car.sure || car.make_only);
+    drawBox(ctx, car.box.map(v => v * k), named, `ID:${car.n} ${carName(car)} ${carConf(car).toFixed(2)}`, lw, fs);
+    const model = !car.named ? "—" : car.other ? "not one of the models it knows" : car.make_only ? "unsure" : car.sure ? car.model : `${car.model}? (unsure)`;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td><span class="dot" style="background:${col}"></span>${car.n}</td><td>${car.brand}</td><td>${model}</td>` +
-      `<td>${pct(car.make_only ? car.make_confidence : car.confidence)}</td><td class="muted top3">${car.top3.map(t => `${t.name} ${pct(t.p)}`).join(", ")}</td>`;
+    tr.innerHTML = `<td>${car.n}</td><td>${car.named ? car.brand : car.kind}</td><td>${model}</td>` +
+      `<td>${pct(car.named && !car.sure && !car.make_only ? car.confidence : carConf(car))}</td><td class="muted top3">${car.top3.map(t => `${t.name} ${pct(t.p)}`).join(", ")}</td>`;
     tbody.appendChild(tr);
   }
+  drawPanel(ctx, `Vehicles: ${data.cars.length}`, countBy(data.cars.map(carName)), fs);
   $("table").style.display = data.cars.length ? "" : "none";
-  const named = data.cars.filter(c => c.sure || c.make_only).map(carName);
-  if (!data.cars.length) setStatus(st, data.background_boxes.length ? "Only small or distant cars found. Try a photo where the car fills more of the frame." : "No car found in this photo.");
-  else setStatus(st, `Found ${data.cars.length} car${data.cars.length > 1 ? "s" : ""}` + (named.length ? ": " + named.join(", ") : "") + ".");
+  const named = data.cars.filter(c => c.named && (c.sure || c.make_only)).map(carName);
+  if (!data.cars.length) setStatus(st, "No vehicle found in this photo.");
+  else setStatus(st, `Found ${data.cars.length} vehicle${data.cars.length > 1 ? "s" : ""}` + (named.length ? ": " + named.join(", ") : "") + ".");
   showKnown(data);
 }
 
@@ -211,7 +227,7 @@ $("vgo").onclick = () => analyseVideo();
 
 async function loadVideo(file) {
   if (!file.type.startsWith("video/")) return setStatus($("vstatus"), "That is not a video file. For photos, use the Photo tab.", true);
-  vfileBlob = file; frames = []; tracks = [];
+  vfileBlob = file; frames = []; tracks = []; $("vrec").classList.add("hidden");
   video.src = URL.createObjectURL(file);
   await new Promise((ok, bad) => { video.onloadedmetadata = ok; video.onerror = () => bad(); }).catch(() => null);
   if (!video.videoWidth) return setStatus($("vstatus"), "Your browser cannot play this video format. Try MP4 (H.264).", true);
@@ -259,11 +275,10 @@ async function analyseVideo() {
   frames.sort((a, b) => a.t - b.t);
   buildTracks(step);
   $("vgo").disabled = false;
-  const named = tracks.filter(t => t.label !== "?");
-  setStatus(st, `Done: ${tracks.length} car${tracks.length === 1 ? "" : "s"} followed across ${frames.length} frames` + (failed ? ` (${failed} frames failed)` : "") +
-    (named.length ? ". " + summarise(named) : "") + ". Press play to see the boxes.");
+  setStatus(st, `Done: ${tracks.length} vehicle${tracks.length === 1 ? "" : "s"} followed across ${frames.length} frames` + (failed ? ` (${failed} frames failed)` : "") +
+    (summarise(tracks) ? ". Named: " + summarise(tracks) : "") + ". Press play to see the labels.");
   if (frames[0]) showKnown(frames[0].data);
-  renderTable(); video.currentTime = 0; drawOverlay();
+  renderTable(); $("vrec").classList.remove("hidden"); video.currentTime = 0; drawOverlay();
 }
 
 // Simple IoU tracker: link each car to the track whose last box overlaps it most.
@@ -278,63 +293,109 @@ function buildTracks(step) {
     const used = new Set();
     for (const car of f.data.cars) {
       const box = car.box.map(v => v * f.scale);
-      let best = null, bestIou = 0.25;
+      let best = null, bestIou = 0.2;
       for (const tr of tracks) {
         if (used.has(tr) || f.t - tr.lastT > step * 3.01) continue;
+        if ((tr.kind === "motorcycle") !== (car.kind === "motorcycle")) continue;
         if (cuts.some(c => c > tr.lastT && c <= f.t)) continue;          // never link across a scene cut
-        const v = iou(tr.lastBox, box); if (v > bestIou) { bestIou = v; best = tr; }
+        // compare with where the car should be now, given how it was moving
+        const dt = f.t - tr.lastT, pred = tr.lastBox.map((x, j) => x + (tr.vel ? tr.vel[j] * dt : 0));
+        const v = Math.max(iou(pred, box), iou(tr.lastBox, box)); if (v > bestIou) { bestIou = v; best = tr; }
       }
-      if (!best) { best = { id: tracks.length + 1, votes: {}, makeVotes: {}, hits: [], firstT: f.t }; tracks.push(best); }
+      if (!best) { best = { votes: {}, makeVotes: {}, named: 0, hits: [], kind: car.kind, firstT: f.t }; tracks.push(best); }
+      if (best.lastBox && f.t > best.lastT) best.vel = box.map((x, j) => (x - best.lastBox[j]) / (f.t - best.lastT));
       used.add(best); best.lastBox = box; best.lastT = f.t; best.hits.push({ t: f.t, box, car });
-      for (const g of car.top3) best.votes[g.name] = (best.votes[g.name] || 0) + g.p;
-      best.makeVotes[car.brand] = (best.makeVotes[car.brand] || 0) + (car.make_confidence || car.confidence);
+      if (car.named) {
+        best.named++;
+        for (const g of car.top3) best.votes[g.name] = (best.votes[g.name] || 0) + g.p;
+        best.makeVotes[car.brand] = (best.makeVotes[car.brand] || 0) + (car.make_confidence || 0);
+      }
     }
   }
   tracks = tracks.filter(tr => tr.hits.length >= 2 || frames.length < 3);
+  tracks.sort((a, b) => a.firstT - b.firstT || a.hits[0].box[0] - b.hits[0].box[0]);
   tracks.forEach((tr, i) => {
     tr.id = i + 1;
-    const total = tr.hits.length;
-    const [name, score] = Object.entries(tr.votes).sort((a, b) => b[1] - a[1])[0] || ["?", 0];
-    const [make, mscore] = Object.entries(tr.makeVotes).sort((a, b) => b[1] - a[1])[0] || ["?", 0];
-    tr.conf = score / total; tr.makeConf = mscore / total;
-    if (name === "Other car") { tr.label = "Other car"; tr.sure = false; }
-    else if (tr.conf >= 0.30) { tr.label = name; tr.sure = true; }
-    else if (tr.makeConf >= 0.50) { tr.label = `${make} (model unsure)`; tr.sure = false; }
-    else { tr.label = name + "?"; tr.sure = false; }
-    tr.colour = tr.sure ? COLOURS[i % COLOURS.length] : GREY;
+    const n = Math.max(1, tr.named);
+    const [name, score] = Object.entries(tr.votes).sort((a, b) => b[1] - a[1])[0] || ["", 0];
+    const [make, mscore] = Object.entries(tr.makeVotes).sort((a, b) => b[1] - a[1])[0] || ["", 0];
+    tr.conf = score / n; tr.makeConf = mscore / n;
+    tr.detConf = tr.hits.reduce((a, h) => a + (h.car.detect_score || h.car.confidence), 0) / tr.hits.length;
+    if (!tr.named || name === "Other car") { tr.label = tr.kind === "bus" || tr.kind === "truck" ? tr.kind : tr.kind === "motorcycle" ? "motorcycle" : "car"; tr.level = 0; tr.shownConf = tr.detConf; }
+    else if (tr.conf >= 0.30) { tr.label = name; tr.level = 2; tr.shownConf = tr.conf; }
+    else if (tr.makeConf >= 0.50) { tr.label = make; tr.level = 1; tr.shownConf = tr.makeConf; }
+    else { tr.label = "car"; tr.level = 0; tr.shownConf = tr.detConf; tr.guess = name; }
   });
 }
 function summarise(ts) {
-  const c = {}; for (const t of ts) if (t.sure) c[t.label] = (c[t.label] || 0) + 1;
-  return Object.entries(c).map(([k, v]) => (v > 1 ? v + "× " : "") + k).join(", ");
+  return countBy(ts.filter(t => t.level === 2).map(t => t.label)).map(([k, v]) => (v > 1 ? v + "× " : "") + k).join(", ");
 }
 function renderTable() {
   const tb = $("vtable").querySelector("tbody"); tb.innerHTML = "";
   for (const tr of tracks) {
-    const [brand, ...rest] = tr.label.split(" ");
+    const brand = tr.level === 2 ? tr.label.split(" ")[0] : tr.level === 1 ? tr.label : tr.label;
+    const model = tr.level === 2 ? tr.label.split(" ").slice(1).join(" ") : tr.level === 1 ? "unsure" : tr.guess ? `unsure (maybe ${tr.guess})` : "—";
     const row = document.createElement("tr");
-    row.innerHTML = `<td><span class="dot" style="background:${tr.colour}"></span>${tr.id}</td><td>${tr.label === "Other car" ? "Other" : brand}</td>` +
-      `<td>${tr.label === "Other car" ? "not one of the models it knows" : rest.join(" ")}</td><td>${pct(tr.label.includes("(model unsure)") ? tr.makeConf : tr.conf)}</td>` +
+    row.innerHTML = `<td>${tr.id}</td><td>${brand}</td><td>${model}</td><td>${pct(tr.shownConf)}</td>` +
       `<td class="muted top3">${tr.hits[0].t.toFixed(1)}–${tr.hits[tr.hits.length - 1].t.toFixed(1)} s, ${tr.hits.length} frames</td>`;
     row.style.cursor = "pointer"; row.onclick = () => { video.currentTime = tr.hits[0].t; };
     tb.appendChild(row);
   }
   $("vtable").classList.toggle("hidden", !tracks.length);
 }
+// Box for a track at time t: interpolate between the two nearest sampled frames so boxes glide.
+function boxAt(tr, t, step) {
+  const h = tr.hits;
+  if (t < h[0].t - step * 0.5 || t > h[h.length - 1].t + step * 0.5) return null;
+  let i = h.findIndex(x => x.t >= t);
+  if (i === -1) return h[h.length - 1].box;
+  if (i === 0) return h[0].box;
+  const a = h[i - 1], b = h[i];
+  if (b.t - a.t > step * 3.01) return t - a.t < step * 0.5 ? a.box : (b.t - t < step * 0.5 ? b.box : null);
+  const w = (t - a.t) / (b.t - a.t);
+  return a.box.map((v, k) => v + (b.box[k] - v) * w);
+}
+function paintOverlay(ctx, W, H, t, scaleText) {
+  const step = +$("vstep").value;
+  const fs = Math.max(11, Math.round(13 * scaleText)), lw = Math.max(1.5, 2 * scaleText);
+  for (const tr of tracks) {
+    const box = boxAt(tr, t, step); if (!box) continue;
+    drawBox(ctx, box, tr.level > 0, `ID:${tr.id} ${tr.label} ${tr.shownConf.toFixed(2)}`, lw, fs);
+  }
+  const seen = tracks.filter(tr => tr.firstT <= t + 1e-6);
+  drawPanel(ctx, `Vehicles so far: ${seen.length}`, countBy(seen.map(tr => tr.label)).slice(0, 12), fs);
+}
 function drawOverlay() {
   const ctx = vcanvas.getContext("2d"); ctx.clearRect(0, 0, vcanvas.width, vcanvas.height);
   if (!tracks.length) return;
-  const t = video.currentTime, step = +$("vstep").value;
   const shown = vcanvas.getBoundingClientRect().width || vcanvas.width;
-  const fs = Math.max(12, Math.round(14 * vcanvas.width / shown)), lw = Math.max(2, Math.round(2.5 * vcanvas.width / shown));
-  for (const tr of tracks) {
-    // nearest sampled box within one step
-    let hit = null, d = Infinity;
-    for (const h of tr.hits) { const dd = Math.abs(h.t - t); if (dd < d) { d = dd; hit = h; } }
-    if (!hit || d > step * 0.75) continue;
-    drawBox(ctx, hit.box, tr.colour, `${tr.id}. ${tr.label}`, lw, fs);
-  }
+  paintOverlay(ctx, vcanvas.width, vcanvas.height, video.currentTime, vcanvas.width / shown);
 }
+// Record the video with the labels burned in (plays the clip once, in real time).
+async function recordLabelled() {
+  const btn = $("vrec"), st = $("vstatus");
+  const types = ["video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  const mime = types.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+  if (!mime) return setStatus(st, "This browser cannot record video. Try Chrome or Edge.", true);
+  const out = document.createElement("canvas"); out.width = video.videoWidth; out.height = video.videoHeight;
+  const octx = out.getContext("2d");
+  const rec = new MediaRecorder(out.captureStream(30), { mimeType: mime, videoBitsPerSecond: 6e6 });
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const stopped = new Promise(r => rec.onstop = r);
+  const endT = frames.length ? frames[frames.length - 1].t + +$("vstep").value : video.duration;
+  btn.disabled = true; video.pause(); await seek(0);
+  const scale = Math.max(1, video.videoWidth / 960);
+  let raf; const paint = () => { octx.drawImage(video, 0, 0, out.width, out.height); paintOverlay(octx, out.width, out.height, video.currentTime, scale); raf = requestAnimationFrame(paint); };
+  rec.start(250); paint(); setStatus(st, "Recording the labelled video… (plays once in real time)", false, true);
+  await video.play();
+  await new Promise(r => { const chk = () => (video.currentTime >= endT || video.ended) ? r() : setTimeout(chk, 100); chk(); });
+  video.pause(); cancelAnimationFrame(raf); rec.stop(); await stopped;
+  const blob = new Blob(chunks, { type: mime.split(";")[0] });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "labelled_video." + (mime.startsWith("video/mp4") ? "mp4" : "webm"); a.click();
+  btn.disabled = false; setStatus(st, `Saved ${a.download} (${(blob.size / 1e6).toFixed(1)} MB).`);
+}
+$("vrec").onclick = () => recordLabelled();
 video.addEventListener("timeupdate", drawOverlay);
 video.addEventListener("seeked", drawOverlay);
 (function loop() { if (!video.paused) drawOverlay(); requestAnimationFrame(loop); })();

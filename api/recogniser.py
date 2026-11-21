@@ -1,4 +1,4 @@
-"""Car brand and model recognition without PyTorch: YOLO26n and CLIP ViT-B/16 in ONNX Runtime.
+"""Car brand and model recognition without PyTorch: YOLO26s and CLIP ViT-B/16 in ONNX Runtime.
 
 Detect vehicles, crop each one, embed it with CLIP ViT-B/16, then a logistic-regression head picks
 one of ~180 make-model classes. When the model is unsure but the make is clear, report the make.
@@ -12,11 +12,13 @@ import onnxruntime as ort
 from PIL import Image
 
 MODELS = Path(__file__).parent / "models"
-VEHICLE_CLASSES = (2, 5, 7)       # COCO car, bus, truck
-DETECT_CONF = 0.35
+VEHICLE_CLASSES = (2, 3, 5, 7)    # COCO car, motorcycle, bus, truck
+KIND = {2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
+DETECT_CONF = 0.30
 NMS_IOU = 0.6
-MIN_BOX = 60                      # px; smaller cars are ignored
-MIN_AREA = 0.03                   # cars under 3% of the photo are background: box only, no name
+MIN_BOX = 24                      # px; smaller vehicles are ignored
+MIN_NAME = 48                     # px; cars smaller than this are boxed as "car" but not named
+MAX_NAMED = 16                    # name at most this many cars per image (largest first) to bound latency
 UNSURE_BELOW = 0.30               # set from the hold-out: see docs/web-app.md
 PAD = 0.04
 CLIP_MEAN = np.array([0.48145466, 0.4578275, 0.40821073], dtype=np.float32)
@@ -38,12 +40,13 @@ MODEL_NAMES = {"hr-v": "HR-V", "x50": "X50", "x70": "X70", "x90": "X90", "s70": 
                "rc": "RC", "rx": "RX", "ux": "UX", "rz": "RZ", "nv200": "NV200", "nv350": "NV350", "eqa": "EQA",
                "eqb": "EQB", "eqe": "EQE", "eqs": "EQS", "eqe_suv": "EQE SUV", "eqs_suv": "EQS SUV", "cla": "CLA",
                "cls": "CLS", "gla": "GLA", "glb": "GLB", "glc": "GLC", "gle": "GLE", "gls": "GLS", "sl": "SL",
-               "slc": "SLC", "718": "718", "911": "911", "500": "500", "v70": "V70"}
+               "slc": "SLC", "qq": "QQ", "718": "718", "911": "911", "500": "500", "v70": "V70"}
 MAKE_SURE = 0.50                  # if the model is unsure but its make is this likely, report the make only
 
 _opts = ort.SessionOptions()
 _opts.intra_op_num_threads = 2
-_yolo = ort.InferenceSession(str(MODELS / "yolo26n.onnx"), _opts, providers=["CPUExecutionProvider"])
+_yolo = ort.InferenceSession(str(MODELS / "yolo26s.onnx"), _opts, providers=["CPUExecutionProvider"])
+YOLO_SIZE = _yolo.get_inputs()[0].shape[2]          # 960: small, distant vehicles need the extra pixels
 def _load_half_weights(path):
     """The CLIP ViT-B/16 file stores its big weight tensors as float16 to halve its size;
     convert them back to float32 so inference matches full precision."""
@@ -83,7 +86,8 @@ def pretty(label):
     return BRANDS.get(make, make.title()), nice
 
 
-def _letterbox(im, size=640):
+def _letterbox(im, size=None):
+    size = size or YOLO_SIZE
     w, h = im.size
     r = min(size / w, size / h)
     nw, nh = round(w * r), round(h * r)
@@ -110,23 +114,25 @@ def _nms(boxes, scores, iou):
 
 
 def detect(im):
-    """Vehicle boxes [x1, y1, x2, y2] in original pixels, largest first."""
+    """Vehicles as (box [x1, y1, x2, y2] in original pixels, kind, score), largest first."""
     x, r, dx, dy = _letterbox(im)
-    out = _yolo.run(None, {_yolo.get_inputs()[0].name: x})[0][0].T       # (8400, 84)
-    scores = out[:, 4:][:, list(VEHICLE_CLASSES)].max(1)
+    out = _yolo.run(None, {_yolo.get_inputs()[0].name: x})[0][0].T       # (anchors, 84)
+    cls_scores = out[:, 4:][:, list(VEHICLE_CLASSES)]
+    scores = cls_scores.max(1)
     m = scores >= DETECT_CONF
     if not m.any():
         return []
+    kinds = np.array(VEHICLE_CLASSES)[cls_scores[m].argmax(1)]
     cx, cy, w, h = out[m, 0], out[m, 1], out[m, 2], out[m, 3]
     b = np.stack([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], 1)
     b[:, [0, 2]] = (b[:, [0, 2]] - dx) / r
     b[:, [1, 3]] = (b[:, [1, 3]] - dy) / r
     W, H = im.size
     b = np.clip(b, 0, [W, H, W, H])
-    keep = _nms(b, scores[m], NMS_IOU)                 # class-agnostic: one box per car
-    boxes = [b[i].tolist() for i in keep]
-    boxes = [bb for bb in boxes if min(bb[2] - bb[0], bb[3] - bb[1]) >= MIN_BOX]
-    return sorted(boxes, key=lambda bb: -(bb[2] - bb[0]) * (bb[3] - bb[1]))
+    keep = _nms(b, scores[m], NMS_IOU)                 # class-agnostic: one box per vehicle
+    dets = [(b[i].tolist(), KIND[int(kinds[i])], float(scores[m][i])) for i in keep]
+    dets = [d for d in dets if min(d[0][2] - d[0][0], d[0][3] - d[0][1]) >= MIN_BOX]
+    return sorted(dets, key=lambda d: -(d[0][2] - d[0][0]) * (d[0][3] - d[0][1]))
 
 
 def _clip_input(crop):
@@ -153,33 +159,44 @@ def recognise(image_bytes):
     im = Image.open(io.BytesIO(image_bytes))
     im = im.convert("RGB")
     W, H = im.size
-    boxes = detect(im)
-    small = [bb for bb in boxes if (bb[2] - bb[0]) * (bb[3] - bb[1]) < MIN_AREA * W * H]
-    big = [bb for bb in boxes if bb not in small]
-    cars = []
-    if big:
+    dets = detect(im)
+    nameable = [i for i, (bb, kind, _) in enumerate(dets)
+                if kind != "motorcycle" and min(bb[2] - bb[0], bb[3] - bb[1]) >= MIN_NAME][:MAX_NAMED]
+    probs = {}
+    if nameable:
         crops = []
-        for x1, y1, x2, y2 in big:
+        for i in nameable:
+            x1, y1, x2, y2 = dets[i][0]
             px, py = PAD * (x2 - x1), PAD * (y2 - y1)
             crops.append(im.crop((max(0, x1 - px), max(0, y1 - py), min(W, x2 + px), min(H, y2 + py))))
-        for k, (bb, p) in enumerate(zip(big, classify(crops)), 1):
-            order = np.argsort(-p)
-            label = LABELS[order[0]]
-            brand, model = pretty(label)
-            conf = float(p[order[0]])
-            pm = p @ _MK
-            make_i = int(pm.argmax())
-            make_conf = float(pm[make_i])
-            sure = conf >= UNSURE_BELOW and label != "other_car"
-            make_only = (not sure) and label != "other_car" and make_conf >= MAKE_SURE
-            if make_only:
-                brand = BRANDS.get(MAKES[make_i], MAKES[make_i].title())
-            cars.append({
-                "n": k, "box": [round(v, 1) for v in bb], "label": label, "brand": brand, "model": model,
-                "confidence": round(conf, 3), "other": label == "other_car",
-                "sure": sure, "make_only": make_only, "make_confidence": round(make_conf, 3),
-                "top3": [{"name": " ".join(pretty(LABELS[j])), "p": round(float(p[j]), 3)} for j in order[:3]],
-            })
-    return {"width": W, "height": H, "cars": cars, "background_boxes": [[round(v, 1) for v in bb] for bb in small],
+        probs = dict(zip(nameable, classify(crops)))
+    cars = []
+    for k, (bb, kind, det_score) in enumerate(dets):
+        car = {"n": k + 1, "box": [round(v, 1) for v in bb], "kind": kind, "detect_score": round(det_score, 3)}
+        if k not in probs:                             # motorcycles and very small cars: boxed, not named
+            car.update({"named": False, "label": kind, "brand": "", "model": kind, "confidence": round(det_score, 3),
+                        "other": False, "sure": False, "make_only": False, "make_confidence": 0.0, "top3": []})
+            cars.append(car)
+            continue
+        p = probs[k]
+        order = np.argsort(-p)
+        label = LABELS[order[0]]
+        brand, model = pretty(label)
+        conf = float(p[order[0]])
+        pm = p @ _MK
+        make_i = int(pm.argmax())
+        make_conf = float(pm[make_i])
+        sure = conf >= UNSURE_BELOW and label != "other_car"
+        make_only = (not sure) and label != "other_car" and make_conf >= MAKE_SURE
+        if make_only:
+            brand = BRANDS.get(MAKES[make_i], MAKES[make_i].title())
+        car.update({
+            "named": True, "label": label, "brand": brand, "model": model,
+            "confidence": round(conf, 3), "other": label == "other_car",
+            "sure": sure, "make_only": make_only, "make_confidence": round(make_conf, 3),
+            "top3": [{"name": " ".join(pretty(LABELS[j])), "p": round(float(p[j]), 3)} for j in order[:3]],
+        })
+        cars.append(car)
+    return {"width": W, "height": H, "cars": cars, "background_boxes": [],
             "known_models": [" ".join(pretty(l)) for l in LABELS if l != "other_car"],
             "known_makes": [BRANDS.get(m, m.title()) for m in MAKES]}

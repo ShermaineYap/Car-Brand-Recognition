@@ -2,7 +2,7 @@
 
 Files: `api/`, `public/`, `vercel.json` and `requirements.txt` at the repo root. Same pipeline as `demo/app.py`, rebuilt to fit a Vercel Python function (no PyTorch):
 
-- `api/models/yolo26n.onnx`: YOLO26n vehicle detector (Ultralytics export, 640 px input)
+- `api/models/yolo26s.onnx`: YOLO26s vehicle detector (Ultralytics export, 960 px input; finds cars, motorcycles, buses, trucks)
 - `api/models/clip_vitb16_w16.onnx.part0/1`: CLIP ViT-B/16 (laion2b_s34b_b88k) image encoder. Big weight tensors are
   stored as float16 (173 MB, split in two for GitHub) and converted back to float32 when the server starts.
   8-bit quantisation was tried and rejected: it dropped 12-model accuracy from 92% to 78–81%.
@@ -24,11 +24,21 @@ test sets) and otherwise shows only the make when that is at least 50% likely (9
 
 The 12-model classifier scored higher on Commons (87%) because it had fewer look-alikes to choose from.
 
+## Display
+
+Traffic-camera style: thin green box and `ID:n name score` for every vehicle, plus a count panel.
+Cars at least 48 px across are named (up to 16 per frame); smaller cars and motorcycles are boxed only.
+The name is the model when the classifier is at least 30% sure, else the make when that is at least 50%
+likely, else just "car" (the score shown is then the detector's).
+
 ## Video
 
 The page samples a frame every 0.5 s (adjustable) in the browser, sends frames to `/api/recognise`
 four at a time, links boxes across frames with an IoU tracker that never links across a scene cut,
 and names each car by the label it got most often. The video file itself is never uploaded.
+Boxes are interpolated between sampled frames and the tracker predicts motion from the last two
+sightings. *Download labelled video* replays the clip once and records it with the labels burned in
+(MP4 in Chrome, WebM elsewhere).
 
 ## Deploy
 
