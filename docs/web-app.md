@@ -2,7 +2,7 @@
 
 Files: `api/`, `public/`, `vercel.json` and `requirements.txt` at the repo root. Same pipeline as `demo/app.py`, rebuilt to fit a Vercel Python function (no PyTorch):
 
-- `api/models/yolo26s.onnx`: YOLO26s vehicle detector (Ultralytics export, 960 px input; finds cars, motorcycles, buses, trucks)
+- `api/models/yolo26s_w16.onnx`: YOLO26s (weights stored as float16) vehicle detector (Ultralytics export, 960 px input; finds cars, motorcycles, buses, trucks)
 - `api/models/clip_vitb16_w16.onnx.part0/1`: CLIP ViT-B/16 (laion2b_s34b_b88k) image encoder. Big weight tensors are
   stored as float16 (173 MB, split in two for GitHub) and converted back to float32 when the server starts.
   8-bit quantisation was tried and rejected: it dropped 12-model accuracy from 92% to 78–81%.

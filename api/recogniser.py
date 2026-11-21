@@ -45,10 +45,9 @@ MAKE_SURE = 0.50                  # if the model is unsure but its make is this 
 
 _opts = ort.SessionOptions()
 _opts.intra_op_num_threads = 2
-_yolo = ort.InferenceSession(str(MODELS / "yolo26s.onnx"), _opts, providers=["CPUExecutionProvider"])
-YOLO_SIZE = _yolo.get_inputs()[0].shape[2]          # 960: small, distant vehicles need the extra pixels
+
 def _load_half_weights(path):
-    """The CLIP ViT-B/16 file stores its big weight tensors as float16 to halve its size;
+    """Model files store their big weight tensors as float16 to halve their size;
     convert them back to float32 so inference matches full precision."""
     import onnx
     from onnx import numpy_helper
@@ -62,6 +61,8 @@ def _load_half_weights(path):
 
 
 _clip = _load_half_weights(MODELS / "clip_vitb16_w16.onnx")
+_yolo = _load_half_weights(MODELS / "yolo26s_w16.onnx")   # weights also stored as float16 (Vercel size limit)
+YOLO_SIZE = _yolo.get_inputs()[0].shape[2]          # 960: small, distant vehicles need the extra pixels
 _head = json.load(open(MODELS / "classifier_head.json"))
 _W = np.array(_head["coef"], dtype=np.float32).T
 _b = np.array(_head["intercept"], dtype=np.float32)
