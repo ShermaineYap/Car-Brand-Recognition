@@ -4,7 +4,7 @@ Usage: python 03_pull_commons.py <out_dir> <model>=<Category name> [...]
 Walks each category and its subcategories (which are usually generations), downloads a
 1280px version of each photo, and records author, licence and source page for attribution.
 """
-import csv, re, sys, time
+import csv, os, re, sys, time
 from pathlib import Path
 
 import requests
@@ -57,6 +57,8 @@ for spec in sys.argv[2:]:
     for sub, title, ii in walk(cat):
         if title in done:
             continue
+        if n >= int(os.environ.get("CAP", "100000")):
+            break
         done.add(title)
         meta = ii.get("extmetadata", {})
         name = re.sub(r"[^A-Za-z0-9._-]+", "_", title.split(":", 1)[1])

@@ -15,7 +15,7 @@ RULES = {
     "honda": {"city hatchback": "city hatchback"},
     "chery": {"arrizo 3": "arrizo 3", "arrizo 5": "arrizo 5", "arrizo 6": "arrizo 6", "arrizo 7": "arrizo 7",
               "fulwin 2": "fulwin 2", "new tiggo 3": "tiggo 3", "new qq": "qq", "omoda 5": "omoda 5",
-              "tiggo 2": "tiggo 2", "tiggo 7": "tiggo 7"},
+              "tiggo 2": "tiggo 2", "tiggo 7": "tiggo 7", "tiggo 8": "tiggo 8"},
     "mazda": {"2": "mazda2", "3": "mazda3", "6": "mazda6"},
     "byd": {"atto 3": "atto 3"},
     "mercedes-benz": {"a200": "a-class", "a250": "a-class", "a45": "a-class", "s 560": "s-class",
@@ -31,6 +31,13 @@ RULES = {
     "kia": {"grand carnival": "carnival"},
     "mini": {"3 door": "3 door", "5 door": "5 door", "jcw clubman": "clubman", "john cooper works countryman": "countryman",
              "john cooper works clubman": "clubman", "john cooper works": "3 door"},
+    "hyundai": {"grand starex": "starex", "ioniq 5": "ioniq 5", "ioniq 6": "ioniq 6", "ioniq hev": "ioniq",
+                "santa fe": "santa fe", "kona electric": "kona"},
+    "volkswagen": {"tiguan allspace": "tiguan", "golf gti": "golf", "golf r": "golf", "id.4": "id.4"},
+    "tesla": {"model 3": "model 3", "model y": "model y", "model s": "model s", "model x": "model x"},
+    "audi": {"q8 e-tron": "q8 e-tron", "e-tron": "e-tron", "rs e-tron gt": "e-tron gt", "a3 sedan": "a3",
+             "a5 sportback": "a5", "rs3 sedan": "rs3", "rs5 sportback": "rs5"},
+    "suzuki": {"swift sport": "swift"},
     "proton": {"satria neo": "satria neo", "suprima s": "suprima s"},
 }
 

@@ -26,8 +26,13 @@ CLIP_STD = np.array([0.26862954, 0.26130258, 0.27577711], dtype=np.float32)
 BRANDS = {"perodua": "Perodua", "proton": "Proton", "toyota": "Toyota", "honda": "Honda", "ford": "Ford",
           "bmw": "BMW", "byd": "BYD", "mini": "MINI", "mercedes-benz": "Mercedes-Benz", "ora": "ORA",
           "mazda": "Mazda", "nissan": "Nissan", "lexus": "Lexus", "kia": "Kia", "isuzu": "Isuzu", "porsche": "Porsche",
-          "mitsubishi": "Mitsubishi", "haval": "Haval", "chery": "Chery", "lamborghini": "Lamborghini", "tank": "Tank"}
-MODEL_NAMES = {"hr-v": "HR-V", "x50": "X50", "x70": "X70", "x90": "X90", "s70": "S70", "cr-v": "CR-V", "br-v": "BR-V",
+          "mitsubishi": "Mitsubishi", "haval": "Haval", "chery": "Chery", "lamborghini": "Lamborghini", "tank": "Tank",
+          "hyundai": "Hyundai", "volkswagen": "Volkswagen", "tesla": "Tesla", "suzuki": "Suzuki", "audi": "Audi",
+          "chevrolet": "Chevrolet", "volvo": "Volvo", "subaru": "Subaru"}
+MODEL_NAMES = {"rs3": "RS3", "rs6": "RS6", "rs7": "RS7", "q8_e-tron": "Q8 e-tron", "e-tron": "e-tron", "xc40": "XC40",
+               "xc60": "XC60", "xc90": "XC90", "ex30": "EX30", "i10": "i10", "i30n": "i30 N", "xv": "XV", "wrx": "WRX", "brz": "BRZ",
+               "model_3": "Model 3", "model_y": "Model Y", "ioniq_5": "Ioniq 5", "ioniq_6": "Ioniq 6", "tiggo_8": "Tiggo 8",
+               "hiace": "HiAce", "hr-v": "HR-V", "x50": "X50", "x70": "X70", "x90": "X90", "s70": "S70", "cr-v": "CR-V", "br-v": "BR-V",
                "wr-v": "WR-V", "cx-3": "CX-3", "cx-30": "CX-30", "cx-5": "CX-5", "cx-60": "CX-60", "cx-8": "CX-8",
                "cx-9": "CX-9", "mx-5": "MX-5", "mx-30": "MX-30", "bt-50": "BT-50", "d-max": "D-Max", "mu-x": "MU-X",
                "x-trail": "X-Trail", "c-hr": "C-HR", "rav4": "RAV4", "gr86": "GR86", "86": "86", "gr_supra": "GR Supra",

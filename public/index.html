@@ -62,6 +62,7 @@
         <div><strong>Choose a photo</strong> or drop it here</div>
         <div class="muted" style="font-size:.9rem">JPEG or PNG. Photos are resized in your browser before upload.</div>
       </label>
+      <div class="row"><label>Show <select id="pfilter"><option value="all" selected>All vehicles</option><option value="near">Nearby cars only</option><option value="named">Named cars only</option></select></label></div>
       <div class="examples" id="examples"><span>Or try:</span></div>
       <div class="status" id="status"></div>
       <div class="hidden" id="result">
@@ -83,6 +84,7 @@
         <label>Check a frame every
           <select id="vstep"><option value="0.25">0.25 s</option><option value="0.5" selected>0.5 s</option><option value="1">1 s</option><option value="2">2 s</option></select>
         </label>
+        <label>Show <select id="vfilter"><option value="all" selected>All vehicles</option><option value="near">Nearby cars only</option><option value="named">Named cars only</option></select></label>
         <label>Up to <select id="vmax"><option>30</option><option selected>60</option><option>120</option></select> s of video</label>
         <button class="primary hidden" id="vgo">Analyse video</button>
         <button class="ghost hidden" id="vrec">Download labelled video</button>
@@ -105,6 +107,8 @@
     <p>A YOLO detector finds every car, motorcycle, bus and truck, then a classifier (CLIP image features + logistic regression) names each car that is
     at least 48 pixels across. When it is sure it shows the model (for example <em>ID:3 Proton Saga 0.88</em>); when only the brand is clear it shows the brand;
     otherwise it just says <em>car</em>. Very small cars and motorcycles are boxed but not named.</p>
+    <p>The <em>Show</em> setting: <em>Nearby cars only</em> hides vehicles narrower than a tenth of the frame (distant cars are too small to name reliably);
+    <em>Named cars only</em> hides every box that would just say <em>car</em>. Hidden cars are still detected, just not drawn.</p>
     <p>Video: the page takes a frame every half second (you can change this), sends each frame to the same recogniser,
     follows each car from frame to frame, and gives it the name it was given most often. Press play to watch the boxes on the video.</p>
     <p id="known"></p>
@@ -113,7 +117,7 @@
 </main>
 <script>
 const COLOURS = ["#2e7d32","#1565c0","#c62828","#6a1b9a","#ef6c00","#00838f","#ad1457","#4e342e"];
-const MAX_SIDE = 1600, FRAME_SIDE = 960;
+const MAX_SIDE = 1600, FRAME_SIDE = 1280;
 const EXAMPLES = ["01_perodua_myvi","02_proton_x70","03_honda_city","04_perodua_bezza","05_toyota_vios","06_proton_saga"];
 const $ = id => document.getElementById(id);
 const setStatus = (el, msg, err=false, spin=false) => { el.className = "status" + (err ? " err" : ""); el.innerHTML = (spin ? '<span class="spinner"></span>' : "") + msg; };
@@ -140,6 +144,12 @@ function carName(car) {
   if (car.sure) return `${car.brand} ${car.model}`;
   if (car.make_only) return car.brand;
   return car.kind || "car";                              // unsure: say what it is, not a guess
+}
+const NEAR = 0.10;   // "nearby" = box at least 10% of the frame width
+function keepCar(car, W, mode) {
+  if (mode === "near") return (car.box[2] - car.box[0]) >= NEAR * W;
+  if (mode === "named") return car.named && (car.sure || car.make_only);
+  return true;
 }
 function carConf(car) { return !car.named ? car.confidence : car.make_only ? car.make_confidence : car.sure ? car.confidence : car.detect_score || car.confidence; }
 // Traffic-camera style: thin green box, "ID:n name 0.88" in yellow on a dark strip
@@ -175,6 +185,7 @@ for (const e of EXAMPLES) {
   img.onclick = async () => handlePhoto(await (await fetch(img.src)).blob());
   $("examples").appendChild(img);
 }
+$("pfilter").onchange = () => lastPhoto && handlePhoto(lastPhoto);
 $("file").onchange = e => e.target.files[0] && handlePhoto(e.target.files[0]);
 function wireDrop(el, fn) {
   el.ondragover = e => { e.preventDefault(); el.classList.add("over"); };
@@ -183,7 +194,9 @@ function wireDrop(el, fn) {
 }
 wireDrop($("drop"), f => handlePhoto(f));
 
+let lastPhoto = null;
 async function handlePhoto(blob) {
+  lastPhoto = blob;
   const st = $("status");
   if (!blob.type.startsWith("image/")) return setStatus(st, "That is not an image file. For videos, use the Video tab.", true);
   setStatus(st, "Recognising… (the first request after a quiet spell can take ~20 s while the server wakes up)", false, true);
@@ -201,6 +214,8 @@ async function handlePhoto(blob) {
   const shown = c.getBoundingClientRect().width || c.width;
   const fs = Math.max(11, Math.round(13 * c.width / shown)), lw = Math.max(1.5, 2 * c.width / shown);
   const tbody = $("table").querySelector("tbody"); tbody.innerHTML = "";
+  const mode = $("pfilter").value, hidden = data.cars.filter(c => !keepCar(c, data.width, mode)).length;
+  data.cars = data.cars.filter(c => keepCar(c, data.width, mode));
   for (const car of data.cars) {
     const named = car.named && (car.sure || car.make_only);
     drawBox(ctx, car.box.map(v => v * k), named, `ID:${car.n} ${carName(car)} ${carConf(car).toFixed(2)}`, lw, fs);
@@ -214,13 +229,14 @@ async function handlePhoto(blob) {
   $("table").style.display = data.cars.length ? "" : "none";
   const named = data.cars.filter(c => c.named && (c.sure || c.make_only)).map(carName);
   if (!data.cars.length) setStatus(st, "No vehicle found in this photo.");
-  else setStatus(st, `Found ${data.cars.length} vehicle${data.cars.length > 1 ? "s" : ""}` + (named.length ? ": " + named.join(", ") : "") + ".");
+  else setStatus(st, `Found ${data.cars.length} vehicle${data.cars.length > 1 ? "s" : ""}` + (named.length ? ": " + named.join(", ") : "") + "." + (hidden ? ` (${hidden} more hidden by the Show setting.)` : ""));
   showKnown(data);
 }
 
 // ---------- video ----------
 const video = $("video"), vcanvas = $("vcanvas");
 let frames = [], tracks = [], cuts = [], vfileBlob = null;
+$("vfilter").onchange = () => { if (tracks.length) { renderTable(); drawOverlay(); } };
 $("vfile").onchange = e => e.target.files[0] && loadVideo(e.target.files[0]);
 wireDrop($("vdrop"), f => loadVideo(f));
 $("vgo").onclick = () => analyseVideo();
@@ -327,12 +343,22 @@ function buildTracks(step) {
     else { tr.label = "car"; tr.level = 0; tr.shownConf = tr.detConf; tr.guess = name; }
   });
 }
+function trackShown(tr, t) {
+  const mode = $("vfilter").value, W = video.videoWidth || 1;
+  if (mode === "named") return tr.level > 0;
+  if (mode === "near") {
+    if (t === undefined) return tr.hits.some(h => h.box[2] - h.box[0] >= NEAR * W);
+    const b = boxAt(tr, t, +$("vstep").value); return !!b && b[2] - b[0] >= NEAR * W;
+  }
+  return true;
+}
+const shownTracks = () => tracks.filter(tr => trackShown(tr));
 function summarise(ts) {
   return countBy(ts.filter(t => t.level === 2).map(t => t.label)).map(([k, v]) => (v > 1 ? v + "× " : "") + k).join(", ");
 }
 function renderTable() {
   const tb = $("vtable").querySelector("tbody"); tb.innerHTML = "";
-  for (const tr of tracks) {
+  for (const tr of shownTracks()) {
     const brand = tr.level === 2 ? tr.label.split(" ")[0] : tr.level === 1 ? tr.label : tr.label;
     const model = tr.level === 2 ? tr.label.split(" ").slice(1).join(" ") : tr.level === 1 ? "unsure" : tr.guess ? `unsure (maybe ${tr.guess})` : "—";
     const row = document.createElement("tr");
@@ -341,7 +367,7 @@ function renderTable() {
     row.style.cursor = "pointer"; row.onclick = () => { video.currentTime = tr.hits[0].t; };
     tb.appendChild(row);
   }
-  $("vtable").classList.toggle("hidden", !tracks.length);
+  $("vtable").classList.toggle("hidden", !shownTracks().length);
 }
 // Box for a track at time t: interpolate between the two nearest sampled frames so boxes glide.
 function boxAt(tr, t, step) {
@@ -359,10 +385,11 @@ function paintOverlay(ctx, W, H, t, scaleText) {
   const step = +$("vstep").value;
   const fs = Math.max(11, Math.round(13 * scaleText)), lw = Math.max(1.5, 2 * scaleText);
   for (const tr of tracks) {
+    if (!trackShown(tr, t)) continue;
     const box = boxAt(tr, t, step); if (!box) continue;
     drawBox(ctx, box, tr.level > 0, `ID:${tr.id} ${tr.label} ${tr.shownConf.toFixed(2)}`, lw, fs);
   }
-  const seen = tracks.filter(tr => tr.firstT <= t + 1e-6);
+  const seen = shownTracks().filter(tr => tr.firstT <= t + 1e-6);
   drawPanel(ctx, `Vehicles so far: ${seen.length}`, countBy(seen.map(tr => tr.label)).slice(0, 12), fs);
 }
 function drawOverlay() {
