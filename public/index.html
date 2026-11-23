@@ -146,6 +146,11 @@ function carName(car) {
   return car.kind || "car";                              // unsure: say what it is, not a guess
 }
 const NEAR = 0.10;   // "nearby" = box at least 10% of the frame width
+// A dashcam's own bonnet sometimes comes back as a wide, low-confidence "car" along the bottom edge.
+function isBonnet(car, W, H) {
+  const [x0, y0, x1, y1] = car.box;
+  return y1 >= 0.97 * H && (x1 - x0) >= 0.45 * W && (car.detect_score || car.confidence) < 0.5;
+}
 function keepCar(car, W, mode) {
   if (mode === "near") return (car.box[2] - car.box[0]) >= NEAR * W;
   if (mode === "named") return car.named && (car.sure || car.make_only);
@@ -308,6 +313,7 @@ function buildTracks(step) {
   for (const f of frames) {
     const used = new Set();
     for (const car of f.data.cars) {
+      if (isBonnet(car, f.data.width, f.data.height)) continue;
       const box = car.box.map(v => v * f.scale);
       let best = null, bestIou = 0.2;
       for (const tr of tracks) {
