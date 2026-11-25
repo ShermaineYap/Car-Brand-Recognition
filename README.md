@@ -6,6 +6,8 @@ names the cropped car.
 
 **Live demo:** https://car-brand-recognition-three.vercel.app (photos and videos, 232 models from 29 makes; redeploys on every push to `main`)
 
+**Walkthrough video (1.5 min):** https://youtu.be/zK_bsgU-gUo
+
 ## For IdeaLab Hacks judges
 
 **The problem.** Two in three new cars sold in Malaysia are a Perodua or a Proton
