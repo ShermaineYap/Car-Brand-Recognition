@@ -35,6 +35,7 @@
   th { color: var(--muted); font-weight:600; font-size:.85rem; text-transform: uppercase; letter-spacing:.03em; }
   .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align: middle; }
   .muted { color: var(--muted); }
+  .close { color: #8a5a00; font-size: .85rem; line-height: 1.35; margin-top: 2px; }
   .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:12px; color:var(--muted); font-size:.92rem; }
   .row select, .row button { font:inherit; padding:4px 8px; border-radius:6px; border:1px solid var(--line); background:#fff; }
   .row button.ghost { cursor:pointer; }
@@ -106,7 +107,9 @@
     <summary>How it works and what it knows</summary>
     <p>A YOLO detector finds every car, motorcycle, bus and truck, then a classifier (CLIP image features + logistic regression) names each car that is
     at least 48 pixels across. When it is sure it shows the model (for example <em>ID:3 Proton Saga 0.88</em>); when only the brand is clear it shows the brand;
-    otherwise it just says <em>car</em>. Very small cars and motorcycles are boxed but not named.</p>
+    otherwise it just says <em>car</em>. Very small cars and motorcycles are boxed but not named.
+    When its second guess is at least 60% as likely as its first, it shows both, for example <em>Perodua Axia or Bezza?</em>,
+    because look-alikes such as the Axia and Bezza often share the same front.</p>
     <p>The <em>Show</em> setting: <em>Nearby cars only</em> hides vehicles narrower than a tenth of the frame (distant cars are too small to name reliably);
     <em>Named cars only</em> hides every box that would just say <em>car</em>. Hidden cars are still detected, just not drawn.</p>
     <p>Video: the page takes a frame every half second (you can change this), sends each frame to the same recogniser,
@@ -138,7 +141,19 @@ async function recogniseBlob(blob) {
   }
   throw new Error("server busy, please try again");
 }
+// A close call: the runner-up is at least 60% as likely as the top guess. Show both instead of
+// pretending to be sure. Look-alike pairs (Axia/Bezza, Bezza/City, X50/X70) land here most.
+const CLOSE = 0.6;
+function closeCall(car) {
+  return car.named && car.sure && !car.other && car.top3 && car.top3.length > 1 && car.top3[1].p >= CLOSE * car.top3[0].p;
+}
+function closeName(car) {
+  const [a, b] = car.top3.map(t => t.name);
+  const [ma] = a.split(" "), [mb, ...rest] = b.split(" ");
+  return `${a} or ${ma === mb ? rest.join(" ") : b}?`;
+}
 function carName(car) {
+  if (closeCall(car)) return closeName(car);
   if (!car.named) return car.kind;                       // motorcycle, or too small to name
   if (car.other) return "car";
   if (car.sure) return `${car.brand} ${car.model}`;
@@ -171,8 +186,10 @@ function drawPanel(ctx, title, counts, fs) {
   const lines = [title, ...counts.map(([k, v]) => `${k}: ${v}`)];
   ctx.font = `600 ${fs}px ui-monospace, "SF Mono", Menlo, Consolas, monospace`;
   const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16, h = lines.length * (fs + 5) + 10;
-  ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, w, h);
-  lines.forEach((l, i) => { ctx.fillStyle = i === 0 ? "#fff" : TXT; ctx.fillText(l, 8, 6 + fs + i * (fs + 5)); });
+  // top-right corner, so it does not cover the label of a car near the top-left
+  const x0 = Math.max(0, ctx.canvas.width - w);
+  ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(x0, 0, w, h);
+  lines.forEach((l, i) => { ctx.fillStyle = i === 0 ? "#fff" : TXT; ctx.fillText(l, x0 + 8, 6 + fs + i * (fs + 5)); });
 }
 function countBy(names) {
   const c = {}; for (const n of names) c[n] = (c[n] || 0) + 1;
@@ -221,20 +238,23 @@ async function handlePhoto(blob) {
   const tbody = $("table").querySelector("tbody"); tbody.innerHTML = "";
   const mode = $("pfilter").value, hidden = data.cars.filter(c => !keepCar(c, data.width, mode)).length;
   data.cars = data.cars.filter(c => keepCar(c, data.width, mode));
+  // count panel first so car labels are drawn over it; skipped for one car (the status line says it)
+  if (data.cars.length > 1) drawPanel(ctx, `Vehicles: ${data.cars.length}`, countBy(data.cars.map(carName)), fs);
   for (const car of data.cars) {
     const named = car.named && (car.sure || car.make_only);
     drawBox(ctx, car.box.map(v => v * k), named, `ID:${car.n} ${carName(car)} ${carConf(car).toFixed(2)}`, lw, fs);
-    const model = !car.named ? "—" : car.other ? "not one of the models it knows" : car.make_only ? "unsure" : car.sure ? car.model : `${car.model}? (unsure)`;
+    const model = !car.named ? "—" : car.other ? "not one of the models it knows"
+      : closeCall(car) ? `${closeName(car).split(" ").slice(1).join(" ")}<div class="close">Close call (${pct(car.top3[0].p)} vs ${pct(car.top3[1].p)}). Check the badge on the boot or grille.</div>`
+      : car.make_only ? "unsure" : car.sure ? car.model : `${car.model}? (unsure)`;
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${car.n}</td><td>${car.named ? car.brand : car.kind}</td><td>${model}</td>` +
       `<td>${pct(car.named && !car.sure && !car.make_only ? car.confidence : carConf(car))}</td><td class="muted top3">${car.top3.map(t => `${t.name} ${pct(t.p)}`).join(", ")}</td>`;
     tbody.appendChild(tr);
   }
-  drawPanel(ctx, `Vehicles: ${data.cars.length}`, countBy(data.cars.map(carName)), fs);
   $("table").style.display = data.cars.length ? "" : "none";
   const named = data.cars.filter(c => c.named && (c.sure || c.make_only)).map(carName);
   if (!data.cars.length) setStatus(st, "No vehicle found in this photo.");
-  else setStatus(st, `Found ${data.cars.length} vehicle${data.cars.length > 1 ? "s" : ""}` + (named.length ? ": " + named.join(", ") : "") + "." + (hidden ? ` (${hidden} more hidden by the Show setting.)` : ""));
+  else setStatus(st, `Found ${data.cars.length} vehicle${data.cars.length > 1 ? "s" : ""}` + (named.length ? ": " + named.join(", ") : "") + (named.length && named[named.length - 1].endsWith("?") ? "" : ".") + (hidden ? ` (${hidden} more hidden by the Show setting.)` : ""));
   showKnown(data);
 }
 
