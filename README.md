@@ -1,9 +1,56 @@
 # Car Brand Recognition
 
-Recognises the brand and model of cars common in Malaysia (for example *Perodua Myvi*) in a photo.
-Two stages: a COCO-pretrained YOLO finds each car, then an image classifier names the cropped car.
+Recognises the brand and model of cars common in Malaysia (for example *Perodua Myvi*) in a photo
+or a dashcam video. Two stages: a COCO-pretrained YOLO finds each car, then an image classifier
+names the cropped car.
 
-**Live demo:** https://car-brand-recognition-three.vercel.app (photos and videos, 179 models from 21 makes; redeploys on every push to `main`)
+**Live demo:** https://car-brand-recognition-three.vercel.app (photos and videos, 232 models from 29 makes; redeploys on every push to `main`)
+
+## For IdeaLab Hacks judges
+
+**The problem.** Two in three new cars sold in Malaysia are a Perodua or a Proton
+([67% in the first half of 2026, MAA](https://paultan.org/2026/07/21/proton-and-perodua-gain-market-share-for-1h-2026-now-up-to-67-non-national-brands-left-with-33/)), and many of them
+look alike: the Axia and Bezza share a front end, and the Bezza and Proton Saga are both small
+sedans. Public car-recognition datasets such as Stanford Cars stop at 2012 models and contain no
+Malaysian cars, so off-the-shelf models cannot name them.
+
+**What it does.** Upload a photo or a dashcam clip. Every vehicle is boxed; each car big enough
+to see is named with its make and model. When the classifier is not sure it falls back to the
+make only, and when its top two guesses are close it says so (*Perodua Bezza or Axia?*) and
+asks you to check the badge, instead of giving a confident wrong name.
+
+**How well the live version works** (classifier `results/road_v1`, all test photos never used for training):
+
+| Test | Result |
+|---|---|
+| Wikimedia Commons photos of 12 common Malaysian models | 81.0% named correctly |
+| Openverse photos, mostly older generations | 53.7% |
+| 51 cars in a KL traffic-jam dashcam video | 29 named correctly (13 before adding road crops) |
+
+**What I learned**
+
+- Clean listing photos do not prepare a model for the road. Adding 421 hand-labelled crops from
+  five Creative Commons dashcam drives more than doubled the right answers on an unseen KL video (13 → 29 of 51).
+- Cleaning labels helped more than splitting classes: removing 293 wrong training crops by hand raised the
+  12-model classifier from 62.6% to 64.8% on the same 623 Openverse photos, while making older generations
+  separate classes lowered Commons accuracy from 86.5% to 80.5%.
+- Shrinking the model has a price: 8-bit quantisation to fit Vercel dropped 12-model accuracy from 92% to 78–81%,
+  so the app keeps float16 weights split in two files instead.
+- Confidence numbers are not answers. Probabilities for look-alikes such as Axia and Bezza can
+  swap when a photo is resized, which is why close calls are now shown as two names.
+
+**Built during the event.** All code, data work and results here were made between 15 and 25 Nov 2026,
+inside the IdeaLab Hacks submission period (from 4 Nov). Solo project by Shermaine Yap.
+
+**Tools and credits.** Ultralytics YOLO26 (detector), OpenCLIP ViT-B/16 (laion2b weights), scikit-learn,
+ONNX Runtime, FastAPI, Vercel, Google Colab. Test and extra training photos from Wikimedia Commons
+and Openverse, credited per photo in `data_manifests/`. The main training crawl
+(`mesolitica/google-image-malaysian-vehicle-dedup` on Hugging Face) states no licence, so those
+images are not shared here. AI coding assistants (Claude) helped write code and documentation.
+
+**Limits.** Night photos, heavily modified cars, and models it does not know will still get a
+name from its list or *car*; 99 of the crawl's classes had fewer than 40 clean photos. Photos and
+video frames are processed and not stored.
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ShermaineYap/Car-Brand-Recognition?quickstart=1)
 
