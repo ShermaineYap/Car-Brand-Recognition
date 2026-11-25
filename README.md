@@ -131,3 +131,9 @@ python scripts/09_train_probe.py scripts/config13_v2.csv <test_crop_dir> runs/v2
 1. Run the Colab notebook to fine-tune; try `train_v3` (older generations) with the fine-tuned model.
 2. Collect more photos for the weak pairs: Myvi vs Axia, Vios vs City, X70 vs X50.
 3. Add more models (the crawl covers 223 make-model classes across 21 makes; see `data_manifests/crawl_classes.csv`).
+
+## Licence
+
+Code and model files in this repository are released under the GNU Affero General Public License v3.0
+(see `LICENSE`), because the vehicle detector is Ultralytics YOLO, which is AGPL-3.0. Photos credited in
+`data_manifests/` keep their own Creative Commons licences.
