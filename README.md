@@ -11,7 +11,7 @@ names the cropped car.
 **The problem.** Two in three new cars sold in Malaysia are a Perodua or a Proton
 ([67% in the first half of 2026, MAA](https://paultan.org/2026/07/21/proton-and-perodua-gain-market-share-for-1h-2026-now-up-to-67-non-national-brands-left-with-33/)), and many of them
 look alike: the Axia and Bezza share a front end, and the Bezza and Proton Saga are both small
-sedans. Public car-recognition datasets such as Stanford Cars stop at 2012 models and contain no
+sedans. The best-known public car dataset, Stanford Cars, stops at 2012 models and has no
 Malaysian cars, so off-the-shelf models cannot name them.
 
 **What it does.** Upload a photo or a dashcam clip. Every vehicle is boxed; each car big enough
